@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -23,7 +24,9 @@ CARD_FILE = Path(__file__).parent / "www" / "wateralarm-card.js"
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Register the static path for the Lovelace card."""
     # Serve the JS file at /wateralarm/wateralarm-card.js
-    hass.http.register_static_path(CARD_URL, str(CARD_FILE), cache_headers=True)
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(CARD_URL, str(CARD_FILE), True)]
+    )
     return True
 
 

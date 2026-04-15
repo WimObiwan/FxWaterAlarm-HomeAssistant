@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -22,12 +23,17 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 CARD_URL = f"/{DOMAIN}/wateralarm-card.js"
 CARD_DIR = Path(__file__).parent / "www"
 
+# Read version from manifest.json for cache busting
+_MANIFEST = Path(__file__).parent / "manifest.json"
+with open(_MANIFEST, encoding="utf-8") as _f:
+    VERSION = json.load(_f).get("version", "0.0.0")
+
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the WaterAlarm component."""
     # Serve the www/ directory at /wateralarm/
     await hass.http.async_register_static_paths(
-        [StaticPathConfig(f"/{DOMAIN}", str(CARD_DIR), True)]
+        [StaticPathConfig(f"/{DOMAIN}", str(CARD_DIR), False)]
     )
 
     # Register the Lovelace card resource after HA is fully started
@@ -65,7 +71,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _register_card_resource(hass: HomeAssistant) -> None:
-    """Register the card JS as a Lovelace resource if not already present."""
+    """Register or update the card JS as a Lovelace resource."""
+    versioned_url = f"{CARD_URL}?v={VERSION}"
+
     try:
         lovelace = hass.data.get("lovelace")
         if lovelace is None:
@@ -90,20 +98,35 @@ async def _register_card_resource(hass: HomeAssistant) -> None:
             async_call_later(hass, 5, _retry)
             return
 
-        # Check if already registered
+        # Find any existing WaterAlarm resource
         existing = [
             r
             for r in lovelace.resources.async_items()
-            if r["url"].startswith(f"/{DOMAIN}/")
+            if r["url"].split("?")[0] == CARD_URL
         ]
+
         if existing:
-            _LOGGER.debug("WaterAlarm card resource already registered")
+            resource = existing[0]
+            if resource["url"] == versioned_url:
+                _LOGGER.debug("WaterAlarm card resource already up to date (v%s)", VERSION)
+                return
+            # Version changed — update the resource to bust the cache
+            _LOGGER.info(
+                "Updating WaterAlarm card resource: %s → %s",
+                resource["url"],
+                versioned_url,
+            )
+            await lovelace.resources.async_update_item(
+                resource["id"],
+                {"res_type": "module", "url": versioned_url},
+            )
             return
 
+        # First install — create the resource
         await lovelace.resources.async_create_item(
-            {"res_type": "module", "url": CARD_URL}
+            {"res_type": "module", "url": versioned_url}
         )
-        _LOGGER.info("Registered WaterAlarm Lovelace card resource: %s", CARD_URL)
+        _LOGGER.info("Registered WaterAlarm Lovelace card resource: %s", versioned_url)
 
     except Exception:  # noqa: BLE001
         _LOGGER.warning(

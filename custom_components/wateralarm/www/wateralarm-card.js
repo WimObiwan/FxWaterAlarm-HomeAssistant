@@ -306,9 +306,15 @@ class WaterAlarmCardEditor extends HTMLElement {
     this._hass = hass;
     // Update pickers if already rendered
     const ep = this.shadowRoot?.getElementById("entity");
-    if (ep) ep.hass = hass;
+    if (ep) {
+      ep.hass = hass;
+      ep.entityFilter = (entity) => entity.entity_id.includes("wateralarm");
+    }
     const vp = this.shadowRoot?.getElementById("volume_entity");
-    if (vp) vp.hass = hass;
+    if (vp) {
+      vp.hass = hass;
+      vp.entityFilter = (entity) => entity.entity_id.includes("wateralarm");
+    }
   }
 
   setConfig(config) {
@@ -384,6 +390,7 @@ class WaterAlarmCardEditor extends HTMLElement {
       if (ep) {
         ep.hass = this._hass;
         ep.value = this._config.entity || "";
+        ep.entityFilter = (entity) => entity.entity_id.includes("wateralarm");
         ep.addEventListener("value-changed", (e) => {
           this._updateConfig("entity", e.detail.value);
         });
@@ -391,6 +398,7 @@ class WaterAlarmCardEditor extends HTMLElement {
       if (vp) {
         vp.hass = this._hass;
         vp.value = this._config.volume_entity || "";
+        vp.entityFilter = (entity) => entity.entity_id.includes("wateralarm");
         vp.addEventListener("value-changed", (e) => {
           this._updateConfig("volume_entity", e.detail.value);
         });

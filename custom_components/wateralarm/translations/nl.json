@@ -1,0 +1,44 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "WaterAlarm sensor toevoegen",
+        "description": "Voer de sensor-URL in van je WaterAlarm-account.\nJe vindt deze op de sensorpagina onder Details → API Link.",
+        "data": {
+          "api_url": "Sensor URL",
+          "sensor_name": "Naam (optioneel)",
+          "scan_interval": "Verversingsinterval (seconden)"
+        },
+        "data_description": {
+          "api_url": "bv. https://www.wateralarm.be/a/demo/s/abc123",
+          "sensor_name": "Laat leeg om de naam van WaterAlarm te gebruiken",
+          "scan_interval": "Hoe vaak de API bevraagd wordt (standaard: 300 = 5 min)"
+        }
+      },
+      "reconfigure": {
+        "title": "WaterAlarm sensor herconfigureren",
+        "data": {
+          "api_url": "Sensor URL",
+          "sensor_name": "Naam",
+          "scan_interval": "Verversingsinterval (seconden)"
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "Dit lijkt geen geldige WaterAlarm-URL",
+      "cannot_connect": "Kan de WaterAlarm API niet bereiken — controleer de URL",
+      "invalid_response": "De API antwoordde maar het dataformaat is onverwacht"
+    },
+    "abort": {
+      "already_configured": "Deze sensor is al geconfigureerd"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "level": { "name": "Waterniveau" },
+      "volume": { "name": "Watervolume" },
+      "battery": { "name": "Batterijspanning" },
+      "distance": { "name": "Sensorafstand" }
+    }
+  }
+}

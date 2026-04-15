@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <rect width="256" height="256" rx="40" fill="#1565C0"/>
+  <!-- tank outline -->
+  <rect x="60" y="48" width="136" height="176" rx="18" stroke="#fff" stroke-width="8" fill="none"/>
+  <!-- water fill -->
+  <clipPath id="tc">
+    <rect x="60" y="48" width="136" height="176" rx="18"/>
+  </clipPath>
+  <g clip-path="url(#tc)">
+    <rect x="56" y="130" width="144" height="100" fill="#42A5F5" opacity="0.6"/>
+    <path d="M56,145 Q88,132 120,145 T184,145 Q216,132 248,145 L248,240 L56,240 Z" fill="#42A5F5" opacity="0.4"/>
+    <rect x="56" y="145" width="200" height="100" fill="#2196F3" opacity="0.5"/>
+  </g>
+  <!-- drop icon -->
+  <path d="M128,68 Q142,90 142,100 A14,14 0 1,1 114,100 Q114,90 128,68Z" fill="#fff" opacity="0.9"/>
+</svg>

@@ -90,7 +90,7 @@ class WaterAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     name = user_input.get(CONF_SENSOR_NAME, "").strip()
                     if not name:
                         # Try to derive from API response
-                        name = data.get("sensorName", DEFAULT_NAME)
+                        name = data.get("accountSensor", {}).get("name", DEFAULT_NAME)
 
                     return self.async_create_entry(
                         title=name,

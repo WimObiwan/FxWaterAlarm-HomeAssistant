@@ -40,7 +40,7 @@ class WaterAlarmCard extends HTMLElement {
     // Try to guess volume entity from the level entity name
     if (!this._config.volume_entity) {
       this._config.volume_entity = this._config.entity.replace(
-        /_water_level$/,
+        "_water_level",
         "_water_volume"
       );
     }
@@ -57,7 +57,7 @@ class WaterAlarmCard extends HTMLElement {
   static getStubConfig(hass) {
     // Auto-find a WaterAlarm level entity
     const entity = Object.keys(hass.states).find(
-      (e) => e.startsWith("sensor.wateralarm") && e.endsWith("_water_level")
+      (e) => e.startsWith("sensor.wateralarm") && e.includes("_water_level")
     );
     return { entity: entity || "" };
   }

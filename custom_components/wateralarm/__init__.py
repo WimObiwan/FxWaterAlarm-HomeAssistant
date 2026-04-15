@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
+from homeassistant.core import CoreState, HomeAssistant
+from homeassistant.helpers.event import async_call_later
 
 from .const import CONF_API_URL, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
 from .coordinator import WaterAlarmCoordinator
@@ -18,15 +20,25 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 CARD_URL = f"/{DOMAIN}/wateralarm-card.js"
-CARD_FILE = Path(__file__).parent / "www" / "wateralarm-card.js"
+CARD_DIR = Path(__file__).parent / "www"
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Register the static path for the Lovelace card."""
-    # Serve the JS file at /wateralarm/wateralarm-card.js
+    """Set up the WaterAlarm component."""
+    # Serve the www/ directory at /wateralarm/
     await hass.http.async_register_static_paths(
-        [StaticPathConfig(CARD_URL, str(CARD_FILE), True)]
+        [StaticPathConfig(f"/{DOMAIN}", str(CARD_DIR), True)]
     )
+
+    # Register the Lovelace card resource after HA is fully started
+    async def _setup_frontend(_event: Any = None) -> None:
+        await _register_card_resource(hass)
+
+    if hass.state == CoreState.running:
+        await _setup_frontend()
+    else:
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _setup_frontend)
+
     return True
 
 
@@ -41,10 +53,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
-
-    # Auto-register the Lovelace resource (only once)
-    await _register_card_resource(hass)
-
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -59,32 +67,48 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def _register_card_resource(hass: HomeAssistant) -> None:
     """Register the card JS as a Lovelace resource if not already present."""
     try:
-        # Access the Lovelace resource storage
-        resources = hass.data.get("lovelace_resources")
-        if resources is None:
+        lovelace = hass.data.get("lovelace")
+        if lovelace is None:
+            _LOGGER.debug("Lovelace not available")
+            return
+
+        # Only auto-register in storage mode; YAML mode users must add it manually
+        if lovelace.mode != "storage":
             _LOGGER.debug(
-                "Lovelace resources not available (YAML mode?) — "
-                "add the card resource manually: %s",
+                "Lovelace is in YAML mode — add the card resource manually: %s",
                 CARD_URL,
             )
+            return
+
+        # Resources may not be loaded yet — wait and retry
+        if not lovelace.resources.loaded:
+            _LOGGER.debug("Lovelace resources not loaded yet, retrying in 5s")
+
+            async def _retry(_now: Any) -> None:
+                await _register_card_resource(hass)
+
+            async_call_later(hass, 5, _retry)
             return
 
         # Check if already registered
         existing = [
             r
-            for r in resources.async_items()
-            if r.get("url", "").startswith(f"/{DOMAIN}/")
+            for r in lovelace.resources.async_items()
+            if r["url"].startswith(f"/{DOMAIN}/")
         ]
         if existing:
+            _LOGGER.debug("WaterAlarm card resource already registered")
             return
 
-        await resources.async_create_item({"res_type": "module", "url": CARD_URL})
-        _LOGGER.info("Registered WaterAlarm Lovelace card resource")
+        await lovelace.resources.async_create_item(
+            {"res_type": "module", "url": CARD_URL}
+        )
+        _LOGGER.info("Registered WaterAlarm Lovelace card resource: %s", CARD_URL)
 
     except Exception:  # noqa: BLE001
-        _LOGGER.debug(
+        _LOGGER.warning(
             "Could not auto-register the Lovelace card resource. "
-            "You can add it manually: %s",
+            "Add it manually: Settings → Dashboards → Resources → %s",
             CARD_URL,
             exc_info=True,
         )

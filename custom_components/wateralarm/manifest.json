@@ -8,5 +8,6 @@
   "issue_tracker": "https://github.com/wateralarm/ha-wateralarm/issues",
   "version": "1.0.1",
   "requirements": ["aiohttp>=3.8.0"],
-  "integration_type": "hub"
+  "integration_type": "hub",
+  "dependencies": ["frontend", "http"]
 }

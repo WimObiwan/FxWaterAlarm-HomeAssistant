@@ -62,17 +62,25 @@ class WaterAlarmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     # ------------------------------------------------------------------
     # Convenience helpers to extract values safely from the response.
-    # The API shape (from existing HA docs) is:
+    # Actual API shape:
     #   {
-    #     "sensorName": "...",          # optional
-    #     "capacityL": 10000,           # optional
+    #     "accountSensor": {
+    #       "name": "Buiten",
+    #       "capacityL": 18000,
+    #       ...
+    #     },
     #     "lastMeasurement": {
-    #       "waterL": 5432,
-    #       "levelFraction": 0.54,
-    #       "batteryV": 3.29,           # optional
-    #       "measuredAt": "...",         # optional ISO timestamp
-    #       "distanceMm": 1234          # optional
-    #     }
+    #       "timeStamp": "2026-04-15T19:28:11Z",
+    #       "waterL": 3283.56,
+    #       "levelFraction": 0.19,
+    #       "batV": 3.287,
+    #       "batteryPrc": 85.67,
+    #       "rssiDbm": -91,
+    #       "distanceMm": 2003,
+    #       "heightMm": 373,
+    #       ...
+    #     },
+    #     "trends": { ... }
     #   }
     # We access values defensively so the integration keeps working
     # even if the API adds/removes fields.
@@ -104,7 +112,15 @@ class WaterAlarmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def get_battery(data: dict) -> float | None:
         """Return battery voltage."""
         m = WaterAlarmCoordinator._m(data)
-        return float(m["batteryV"]) if m and "batteryV" in m else None
+        return float(m["batV"]) if m and "batV" in m else None
+
+    @staticmethod
+    def get_battery_pct(data: dict) -> float | None:
+        """Return battery percentage."""
+        m = WaterAlarmCoordinator._m(data)
+        if m and "batteryPrc" in m:
+            return round(float(m["batteryPrc"]), 0)
+        return None
 
     @staticmethod
     def get_distance(data: dict) -> float | None:
@@ -116,14 +132,16 @@ class WaterAlarmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def get_last_update(data: dict) -> str | None:
         """Return ISO timestamp of last measurement."""
         m = WaterAlarmCoordinator._m(data)
-        return m.get("measuredAt") if m else None
+        return m.get("timeStamp") if m else None
 
     @staticmethod
     def get_sensor_name(data: dict) -> str | None:
         """Return sensor name from the API (if present)."""
-        return data.get("sensorName") if data else None
+        as_ = data.get("accountSensor") if data else None
+        return as_.get("name") if as_ else None
 
     @staticmethod
     def get_capacity(data: dict) -> float | None:
         """Return total tank capacity in litres."""
-        return float(data["capacityL"]) if data and "capacityL" in data else None
+        as_ = data.get("accountSensor") if data else None
+        return float(as_["capacityL"]) if as_ and "capacityL" in as_ else None

@@ -73,7 +73,7 @@ async def _register_card_resource(hass: HomeAssistant) -> None:
             return
 
         # Only auto-register in storage mode; YAML mode users must add it manually
-        if lovelace.mode != "storage":
+        if lovelace.resource_mode != "storage":
             _LOGGER.debug(
                 "Lovelace is in YAML mode — add the card resource manually: %s",
                 CARD_URL,

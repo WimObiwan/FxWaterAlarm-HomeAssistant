@@ -302,19 +302,19 @@ class WaterAlarmCard extends HTMLElement {
 /* ── Visual Card Editor ── */
 
 class WaterAlarmCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    // Cache the filter function so it's a stable reference
+    this._waFilter = (entity) => entity.entity_id.includes("wateralarm");
+  }
+
   set hass(hass) {
     this._hass = hass;
-    // Update pickers if already rendered
+    // Only update .hass on pickers — don't re-set other properties
     const ep = this.shadowRoot?.getElementById("entity");
-    if (ep) {
-      ep.hass = hass;
-      ep.entityFilter = (entity) => entity.entity_id.includes("wateralarm");
-    }
+    if (ep) ep.hass = hass;
     const vp = this.shadowRoot?.getElementById("volume_entity");
-    if (vp) {
-      vp.hass = hass;
-      vp.entityFilter = (entity) => entity.entity_id.includes("wateralarm");
-    }
+    if (vp) vp.hass = hass;
   }
 
   setConfig(config) {
@@ -390,7 +390,7 @@ class WaterAlarmCardEditor extends HTMLElement {
       if (ep) {
         ep.hass = this._hass;
         ep.value = this._config.entity || "";
-        ep.entityFilter = (entity) => entity.entity_id.includes("wateralarm");
+        ep.entityFilter = this._waFilter;
         ep.addEventListener("value-changed", (e) => {
           this._updateConfig("entity", e.detail.value);
         });
@@ -398,7 +398,7 @@ class WaterAlarmCardEditor extends HTMLElement {
       if (vp) {
         vp.hass = this._hass;
         vp.value = this._config.volume_entity || "";
-        vp.entityFilter = (entity) => entity.entity_id.includes("wateralarm");
+        vp.entityFilter = this._waFilter;
         vp.addEventListener("value-changed", (e) => {
           this._updateConfig("volume_entity", e.detail.value);
         });

@@ -6,7 +6,7 @@
   "documentation": "https://www.wateralarm.be/docs",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/wateralarm/ha-wateralarm/issues",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "requirements": ["aiohttp>=3.8.0"],
   "integration_type": "hub",
   "dependencies": ["frontend", "http"]

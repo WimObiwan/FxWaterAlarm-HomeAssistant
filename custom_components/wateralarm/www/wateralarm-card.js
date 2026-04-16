@@ -18,7 +18,17 @@
  *   tank_color: "#2196F3"
  */
 
-const CARD_VERSION = "1.0.0";
+const CARD_VERSION = (() => {
+  try {
+    const url = new URL(
+      (document.currentScript && document.currentScript.src) ||
+        import.meta.url
+    );
+    return url.searchParams.get("v") || "dev";
+  } catch {
+    return "dev";
+  }
+})();
 
 class WaterAlarmCard extends HTMLElement {
   /* ──────────── lifecycle ──────────── */
@@ -319,14 +329,20 @@ class WaterAlarmCardEditor extends HTMLElement {
 
   async _ensureEntityPickerLoaded() {
     if (customElements.get("ha-entity-picker")) return;
-    // ha-entity-picker is lazy-loaded — force it by instantiating
-    // a built-in editor that uses it.
-    await customElements.whenDefined("hui-entities-card");
-    const helpers = await window.loadCardHelpers();
-    const card = await helpers.createCardElement({ type: "entities", entities: [] });
-    card.getConfigElement();
-    // ha-entity-picker should now be registered
-    await customElements.whenDefined("ha-entity-picker");
+    // ha-entity-picker is lazy-loaded — force it by asking a built-in
+    // card editor to load (its getConfigElement triggers the import).
+    try {
+      const helpers = await window.loadCardHelpers();
+      const card = await helpers.createCardElement({ type: "entities", entities: [] });
+      await card.constructor.getConfigElement();
+    } catch (err) {
+      console.warn("WaterAlarm: couldn't force-load ha-entity-picker", err);
+    }
+    // Wait for it to actually register (or give up after 3s)
+    await Promise.race([
+      customElements.whenDefined("ha-entity-picker"),
+      new Promise((r) => setTimeout(r, 3000)),
+    ]);
   }
 
   _render() {

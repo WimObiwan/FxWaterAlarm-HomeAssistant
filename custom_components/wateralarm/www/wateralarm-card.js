@@ -304,7 +304,6 @@ class WaterAlarmCard extends HTMLElement {
 class WaterAlarmCardEditor extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
-    // Update pickers if already rendered
     const ep = this.shadowRoot?.getElementById("entity");
     if (ep) ep.hass = hass;
     const vp = this.shadowRoot?.getElementById("volume_entity");
@@ -313,97 +312,44 @@ class WaterAlarmCardEditor extends HTMLElement {
 
   setConfig(config) {
     this._config = { ...config };
-    this._render();
+    if (!this._rendered) this._render();
   }
 
   _render() {
-    if (!this.shadowRoot) this.attachShadow({ mode: "open" });
+    this._rendered = true;
+    this.attachShadow({ mode: "open" });
     this.shadowRoot.innerHTML = `
       <style>
-        .editor { padding: 8px 0; }
         .row { margin-bottom: 16px; }
-        .row-inline {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 12px;
-        }
-        .row-inline label {
-          font-weight: 500;
-          font-size: 14px;
-          flex: 1;
-          color: var(--primary-text-color);
-        }
-        .color-input {
-          width: 48px; height: 32px;
-          border: 1px solid var(--divider-color, #ccc);
-          border-radius: 6px;
-          padding: 2px;
-          cursor: pointer;
-          background: none;
-        }
+        .row-inline { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+        .row-inline label { font-weight:500; font-size:14px; flex:1; color:var(--primary-text-color); }
+        .color-input { width:48px; height:32px; border:1px solid var(--divider-color,#ccc); border-radius:6px; padding:2px; cursor:pointer; background:none; }
       </style>
-      <div class="editor">
-        <div class="row">
-          <ha-entity-picker
-            id="entity"
-            label="Water level entity"
-            allow-custom-entity
-            include-domains='["sensor"]'
-          ></ha-entity-picker>
-        </div>
-        <div class="row">
-          <ha-entity-picker
-            id="volume_entity"
-            label="Volume entity (optional — auto-detected)"
-            allow-custom-entity
-            include-domains='["sensor"]'
-          ></ha-entity-picker>
-        </div>
-        <div class="row">
-          <ha-textfield
-            id="name"
-            label="Name (optional)"
-            placeholder="Auto-detected from sensor"
-          ></ha-textfield>
-        </div>
-        <div class="row-inline">
-          <label>Tank colour</label>
-          <input id="tank_color" type="color" class="color-input"
-                 value="${this._config.tank_color || "#2196F3"}"/>
-        </div>
+      <div>
+        <div class="row"><ha-entity-picker id="entity" label="Water level entity" allow-custom-entity></ha-entity-picker></div>
+        <div class="row"><ha-entity-picker id="volume_entity" label="Volume entity (optional)" allow-custom-entity></ha-entity-picker></div>
+        <div class="row"><ha-textfield id="name" label="Name (optional)" placeholder="Auto-detected"></ha-textfield></div>
+        <div class="row-inline"><label>Tank colour</label><input id="tank_color" type="color" class="color-input" value="${this._config.tank_color || "#2196F3"}"/></div>
       </div>
     `;
 
-    // Set dynamic properties after DOM is ready
     requestAnimationFrame(() => {
       const ep = this.shadowRoot.getElementById("entity");
       const vp = this.shadowRoot.getElementById("volume_entity");
-      const name = this.shadowRoot.getElementById("name");
+      const nm = this.shadowRoot.getElementById("name");
 
-      if (ep) {
-        ep.hass = this._hass;
-        ep.value = this._config.entity || "";
-        ep.addEventListener("value-changed", (e) => {
-          this._updateConfig("entity", e.detail.value);
-        });
-      }
-      if (vp) {
-        vp.hass = this._hass;
-        vp.value = this._config.volume_entity || "";
-        vp.addEventListener("value-changed", (e) => {
-          this._updateConfig("volume_entity", e.detail.value);
-        });
-      }
-      if (name) {
-        name.value = this._config.name || "";
-        name.addEventListener("change", (e) => {
-          this._updateConfig("name", e.target.value);
-        });
-      }
+      ep.hass = this._hass;
+      ep.value = this._config.entity || "";
+      ep.addEventListener("value-changed", (e) => this._updateConfig("entity", e.detail.value));
+
+      vp.hass = this._hass;
+      vp.value = this._config.volume_entity || "";
+      vp.addEventListener("value-changed", (e) => this._updateConfig("volume_entity", e.detail.value));
+
+      nm.value = this._config.name || "";
+      nm.addEventListener("change", (e) => this._updateConfig("name", e.target.value));
     });
 
-    // Color picker works fine synchronously
     this.shadowRoot.getElementById("tank_color").addEventListener("input", (e) => {
       this._updateConfig("tank_color", e.target.value);
     });
@@ -411,16 +357,18 @@ class WaterAlarmCardEditor extends HTMLElement {
 
   _updateConfig(key, value) {
     this._config = { ...this._config, [key]: value };
-    this.dispatchEvent(
-      new CustomEvent("config-changed", { detail: { config: this._config } })
-    );
+    this.dispatchEvent(new CustomEvent("config-changed", { detail: { config: this._config } }));
   }
 }
 
 /* ── Register ── */
 
-customElements.define("wateralarm-card", WaterAlarmCard);
-customElements.define("wateralarm-card-editor", WaterAlarmCardEditor);
+if (!customElements.get("wateralarm-card")) {
+  customElements.define("wateralarm-card", WaterAlarmCard);
+}
+if (!customElements.get("wateralarm-card-editor")) {
+  customElements.define("wateralarm-card-editor", WaterAlarmCardEditor);
+}
 
 window.customCards = window.customCards || [];
 window.customCards.push({

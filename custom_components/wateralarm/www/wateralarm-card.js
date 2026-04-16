@@ -312,7 +312,21 @@ class WaterAlarmCardEditor extends HTMLElement {
 
   setConfig(config) {
     this._config = { ...config };
-    if (!this._rendered) this._render();
+    if (!this._rendered) {
+      this._ensureEntityPickerLoaded().then(() => this._render());
+    }
+  }
+
+  async _ensureEntityPickerLoaded() {
+    if (customElements.get("ha-entity-picker")) return;
+    // ha-entity-picker is lazy-loaded — force it by instantiating
+    // a built-in editor that uses it.
+    await customElements.whenDefined("hui-entities-card");
+    const helpers = await window.loadCardHelpers();
+    const card = await helpers.createCardElement({ type: "entities", entities: [] });
+    card.getConfigElement();
+    // ha-entity-picker should now be registered
+    await customElements.whenDefined("ha-entity-picker");
   }
 
   _render() {

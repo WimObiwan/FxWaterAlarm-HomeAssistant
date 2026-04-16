@@ -36,7 +36,12 @@ class WaterAlarmCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     if (!this._config) return;
-    this._render();
+
+    // Build the DOM once, then update values in-place
+    if (!this._built) {
+      this._buildCard();
+    }
+    this._update();
   }
 
   setConfig(config) {
@@ -53,6 +58,12 @@ class WaterAlarmCard extends HTMLElement {
         "_water_level",
         "_water_volume"
       );
+    }
+    // Force full rebuild on config change
+    this._built = false;
+    if (this._hass) {
+      this._buildCard();
+      this._update();
     }
   }
 
@@ -74,54 +85,8 @@ class WaterAlarmCard extends HTMLElement {
 
   /* ──────────── rendering ──────────── */
 
-  _render() {
-    const hass = this._hass;
-    const config = this._config;
-    const state = hass.states[config.entity];
-    if (!state) {
-      this._renderError("Entity not found: " + config.entity);
-      return;
-    }
-
-    const level = parseFloat(state.state) || 0;
-    const clampedLevel = Math.min(Math.max(level, 0), 110);
-    const name =
-      config.name ||
-      state.attributes.friendly_name?.replace(/ Water level$/i, "") ||
-      "WaterAlarm";
-
-    // Volume
-    let volumeText = "";
-    if (config.show_volume) {
-      const volumeState = hass.states[config.volume_entity];
-      if (volumeState && volumeState.state !== "unavailable") {
-        const vol = parseFloat(volumeState.state);
-        const cap = state.attributes.capacity_l;
-        if (!isNaN(vol)) {
-          volumeText = cap
-            ? `${Math.round(vol).toLocaleString()} / ${Math.round(cap).toLocaleString()} L`
-            : `${Math.round(vol).toLocaleString()} L`;
-        }
-      }
-    }
-
-    // Last update
-    let lastUpdate = "";
-    if (config.show_last_update && state.attributes.last_measurement) {
-      try {
-        const d = new Date(state.attributes.last_measurement);
-        lastUpdate = d.toLocaleString();
-      } catch {
-        lastUpdate = state.attributes.last_measurement;
-      }
-    }
-
-    // Colour tint
-    const color = config.tank_color;
-    const levelPct = clampedLevel / 100;
-    const waveOffset = 100 - clampedLevel * 0.88; // SVG-relative offset
-
-    // Build HTML
+  _buildCard() {
+    const color = this._config.tank_color;
     if (!this.shadowRoot) this.attachShadow({ mode: "open" });
     this.shadowRoot.innerHTML = `
       <ha-card>
@@ -160,7 +125,6 @@ class WaterAlarmCard extends HTMLElement {
             width: 100%;
             height: 100%;
           }
-          /* wave animation */
           @keyframes wave1 {
             0%   { transform: translateX(0); }
             100% { transform: translateX(-50%); }
@@ -188,7 +152,6 @@ class WaterAlarmCard extends HTMLElement {
             font-size: 0.78em;
             color: var(--secondary-text-color);
           }
-          /* colour thresholds */
           .wa-level-low  { --wa-color: #f44336; }
           .wa-level-med  { --wa-color: #ff9800; }
           .wa-level-ok   { --wa-color: ${color}; }
@@ -196,11 +159,11 @@ class WaterAlarmCard extends HTMLElement {
         </style>
 
         <div class="wa-header">
-          <span class="wa-name">${name}</span>
-          <span class="wa-level-badge">${level.toFixed(1)}%</span>
+          <span class="wa-name" data-wa="name"></span>
+          <span class="wa-level-badge" data-wa="badge"></span>
         </div>
 
-        <div class="wa-tank-wrap ${this._levelClass(level)}">
+        <div class="wa-tank-wrap" data-wa="tank">
           <svg class="wa-tank-svg" viewBox="0 0 200 260" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <clipPath id="tankClip_${this._uid}">
@@ -212,46 +175,121 @@ class WaterAlarmCard extends HTMLElement {
               </linearGradient>
             </defs>
 
-            <!-- tank outline -->
             <rect x="20" y="20" width="160" height="220" rx="16"
                   fill="none" stroke="var(--divider-color, #e0e0e0)" stroke-width="3"/>
 
-            <!-- water fill + waves clipped to the tank -->
             <g clip-path="url(#tankClip_${this._uid})">
-              <!-- solid fill -->
-              <rect x="0" y="${waveOffset}%" width="200" height="${100 - waveOffset + 5}%"
-                    fill="url(#waterGrad_${this._uid})"/>
-              <!-- wave layer 1 -->
+              <rect data-wa="fill" x="0" width="200" fill="url(#waterGrad_${this._uid})"/>
               <g class="wa-wave1">
-                <path d="${this._wavePath(waveOffset, 6, 200)}"
-                      fill="var(--wa-color)" opacity="0.35"/>
+                <path data-wa="wave1" fill="var(--wa-color)" opacity="0.35"/>
               </g>
-              <!-- wave layer 2 -->
               <g class="wa-wave2">
-                <path d="${this._wavePath(waveOffset, 4, 200, 30)}"
-                      fill="var(--wa-color)" opacity="0.2"/>
+                <path data-wa="wave2" fill="var(--wa-color)" opacity="0.2"/>
               </g>
             </g>
 
-            <!-- scale ticks -->
             ${this._scaleTicks()}
 
-            <!-- percentage label inside -->
-            <text x="100" y="${Math.max(waveOffset + 8, 28)}%"
+            <text data-wa="pct" x="100"
                   text-anchor="middle" font-size="28" font-weight="700"
-                  fill="${level > 55 ? '#fff' : 'var(--primary-text-color)'}"
-                  opacity="0.85">
-              ${Math.round(level)}%
-            </text>
+                  opacity="0.85"></text>
           </svg>
         </div>
 
         <div class="wa-footer">
-          ${volumeText ? `<div class="wa-volume">${volumeText}</div>` : ""}
-          ${lastUpdate ? `<div class="wa-updated">Last update: ${lastUpdate}</div>` : ""}
+          <div class="wa-volume" data-wa="volume"></div>
+          <div class="wa-updated" data-wa="updated"></div>
         </div>
       </ha-card>
     `;
+    this._built = true;
+
+    // Cache references to updatable elements
+    const q = (sel) => this.shadowRoot.querySelector(`[data-wa="${sel}"]`);
+    this._els = {
+      name: q("name"),
+      badge: q("badge"),
+      tank: q("tank"),
+      fill: q("fill"),
+      wave1: q("wave1"),
+      wave2: q("wave2"),
+      pct: q("pct"),
+      volume: q("volume"),
+      updated: q("updated"),
+    };
+  }
+
+  _update() {
+    const hass = this._hass;
+    const config = this._config;
+    const state = hass.states[config.entity];
+    if (!state) {
+      this._renderError("Entity not found: " + config.entity);
+      return;
+    }
+
+    const level = parseFloat(state.state) || 0;
+    const clampedLevel = Math.min(Math.max(level, 0), 110);
+    const name =
+      config.name ||
+      state.attributes.friendly_name?.replace(/ Water level$/i, "") ||
+      "WaterAlarm";
+    const waveOffset = 100 - clampedLevel * 0.88;
+
+    // Volume
+    let volumeText = "";
+    if (config.show_volume) {
+      const volumeState = hass.states[config.volume_entity];
+      if (volumeState && volumeState.state !== "unavailable") {
+        const vol = parseFloat(volumeState.state);
+        const cap = state.attributes.capacity_l;
+        if (!isNaN(vol)) {
+          volumeText = cap
+            ? `${Math.round(vol).toLocaleString()} / ${Math.round(cap).toLocaleString()} L`
+            : `${Math.round(vol).toLocaleString()} L`;
+        }
+      }
+    }
+
+    // Last update
+    let lastUpdate = "";
+    if (config.show_last_update && state.attributes.last_measurement) {
+      try {
+        lastUpdate = new Date(state.attributes.last_measurement).toLocaleString();
+      } catch {
+        lastUpdate = state.attributes.last_measurement;
+      }
+    }
+
+    const e = this._els;
+
+    // Update text
+    e.name.textContent = name;
+    e.badge.textContent = `${level.toFixed(1)}%`;
+
+    // Update tank class (colour threshold)
+    e.tank.className = `wa-tank-wrap ${this._levelClass(level)}`;
+
+    // Update water fill position — SVG attributes, not full rebuild
+    const yPct = `${waveOffset}%`;
+    const hPct = `${100 - waveOffset + 5}%`;
+    e.fill.setAttribute("y", yPct);
+    e.fill.setAttribute("height", hPct);
+
+    // Update wave paths
+    e.wave1.setAttribute("d", this._wavePath(waveOffset, 6, 200));
+    e.wave2.setAttribute("d", this._wavePath(waveOffset, 4, 200, 30));
+
+    // Update percentage label
+    e.pct.setAttribute("y", `${Math.max(waveOffset + 8, 28)}%`);
+    e.pct.setAttribute("fill", level > 55 ? "#fff" : "var(--primary-text-color)");
+    e.pct.textContent = `${Math.round(level)}%`;
+
+    // Update footer
+    e.volume.textContent = volumeText;
+    e.volume.style.display = volumeText ? "" : "none";
+    e.updated.textContent = lastUpdate ? `Last update: ${lastUpdate}` : "";
+    e.updated.style.display = lastUpdate ? "" : "none";
   }
 
   /* ──────────── helpers ──────────── */

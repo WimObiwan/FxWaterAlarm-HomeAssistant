@@ -67,6 +67,7 @@ class WaterAlarmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     #     "accountSensor": {
     #       "name": "Buiten",
     #       "capacityL": 18000,
+    #       "usableCapacity": 17241,
     #       ...
     #     },
     #     "lastMeasurement": {
@@ -144,4 +145,4 @@ class WaterAlarmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def get_capacity(data: dict) -> float | None:
         """Return total tank capacity in litres."""
         as_ = data.get("accountSensor") if data else None
-        return float(as_["capacityL"]) if as_ and "capacityL" in as_ else None
+        return float(as_["usableCapacity"]) if as_ and "usableCapacity" in as_ else None

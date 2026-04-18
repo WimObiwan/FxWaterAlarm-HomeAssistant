@@ -79,7 +79,9 @@ class WaterAlarmConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             errors[CONF_API_URL] = "cannot_connect"
                         else:
                             data = await resp.json(content_type=None)
-                            if not data or "lastMeasurement" not in data:
+                            # All sensor types have accountSensor and
+                            # lastMeasurement at minimum
+                            if not data or "accountSensor" not in data:
                                 errors[CONF_API_URL] = "invalid_response"
                 except (aiohttp.ClientError, TimeoutError):
                     errors[CONF_API_URL] = "cannot_connect"

@@ -37,8 +37,18 @@
     "sensor": {
       "level": { "name": "Waterniveau" },
       "volume": { "name": "Watervolume" },
-      "battery": { "name": "Batterijspanning" },
-      "distance": { "name": "Sensorafstand" }
+      "battery_pct": { "name": "Batterij" },
+      "battery_voltage": { "name": "Batterijspanning" },
+      "rssi": { "name": "Signaalsterkte" },
+      "distance": { "name": "Sensorafstand" },
+      "temperature": { "name": "Temperatuur" },
+      "humidity": { "name": "Luchtvochtigheid" },
+      "soil_moisture": { "name": "Bodemvochtigheid" },
+      "soil_conductivity": { "name": "Bodemgeleidbaarheid" },
+      "soil_temperature": { "name": "Bodemtemperatuur" }
+    },
+    "binary_sensor": {
+      "water_detected": { "name": "Water gedetecteerd" }
     }
   }
 }

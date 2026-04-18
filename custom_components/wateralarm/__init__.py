@@ -18,7 +18,7 @@ from .coordinator import WaterAlarmCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
 
 CARD_URL = f"/{DOMAIN}/wateralarm-card.js"
 CARD_DIR = Path(__file__).parent / "www"

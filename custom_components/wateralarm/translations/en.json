@@ -37,8 +37,18 @@
     "sensor": {
       "level": { "name": "Water level" },
       "volume": { "name": "Water volume" },
-      "battery": { "name": "Battery voltage" },
-      "distance": { "name": "Sensor distance" }
+      "battery_pct": { "name": "Battery" },
+      "battery_voltage": { "name": "Battery voltage" },
+      "rssi": { "name": "Signal strength" },
+      "distance": { "name": "Sensor distance" },
+      "temperature": { "name": "Temperature" },
+      "humidity": { "name": "Humidity" },
+      "soil_moisture": { "name": "Soil moisture" },
+      "soil_conductivity": { "name": "Soil conductivity" },
+      "soil_temperature": { "name": "Soil temperature" }
+    },
+    "binary_sensor": {
+      "water_detected": { "name": "Water detected" }
     }
   }
 }
